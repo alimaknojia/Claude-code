@@ -1,1 +1,9 @@
-{}
+{
+  "permissions": {
+    "deny": [
+      "Skill(data:data-visualization)",
+      "Skill(data:create-viz)",
+      "Skill(data:write-query)"
+    ]
+  }
+}
