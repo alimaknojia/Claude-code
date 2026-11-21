@@ -1,0 +1,575 @@
+<title>Cologne Layering Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: two-pane bench. Left = shelves (who owns what). Right = mix lab (ranked pairings). Stacks on phones. */
+:root {
+  --bg: #eceeec; --surface: #ffffff; --surface-2: #f5f6f5; --fg: #19201d; --muted: #5a6560; --line: #d3d9d6;
+  --accent: #8f5310; --accent-fg: #ffffff; --accent-soft: #f2e4cf;
+  --good: #2c7a4c; --ok: #6b7a1e; --warn: #a9601a; --bad: #ad3434;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111513; --surface: #1a1f1d; --surface-2: #151a18; --fg: #e6ebe8; --muted: #98a49f; --line: #2c3532;
+  --accent: #e3a557; --accent-fg: #1a1208; --accent-soft: #3a2b18;
+  --good: #5cc58a; --ok: #b9c95a; --warn: #e69c55; --bad: #ea6c6c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111513; --surface: #1a1f1d; --surface-2: #151a18; --fg: #e6ebe8; --muted: #98a49f; --line: #2c3532;
+  --accent: #e3a557; --accent-fg: #1a1208; --accent-soft: #3a2b18;
+  --good: #5cc58a; --ok: #b9c95a; --warn: #e69c55; --bad: #ea6c6c; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(28px, 5vw, 40px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 21px; font-weight: 700; }
+h3 { font-size: 16px; font-weight: 600; }
+.label { font-family: var(--f-mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.muted { color: var(--muted); }
+header.top { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: end; justify-content: space-between; margin-bottom: 22px; }
+header.top p { margin: 6px 0 0; max-width: 60ch; color: var(--muted); }
+.banner { background: var(--accent-soft); border-radius: var(--r); padding: 10px 14px; margin-bottom: 18px; font-size: 14px; }
+.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.between { justify-content: space-between; }
+
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 7px 12px; font-weight: 500; }
+button:hover { border-color: var(--muted); }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button.primary:hover { filter: brightness(1.07); }
+button.ghost { border-color: transparent; background: transparent; color: var(--muted); padding: 4px 8px; }
+button.ghost:hover { color: var(--bad); }
+button.danger { color: var(--bad); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type=text], select { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+input[type=text] { flex: 1 1 180px; }
+
+.people { display: flex; flex-wrap: wrap; gap: 6px; }
+.person { border-radius: 999px; padding: 5px 12px; background: var(--surface-2); }
+.person[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.person .n { font-family: var(--f-mono); font-size: 11px; opacity: .7; margin-left: 4px; }
+.tag-ex { font-family: var(--f-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; background: var(--accent-soft); color: var(--accent); padding: 2px 7px; border-radius: 4px; }
+
+.bottles { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.bottle { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line); }
+.bottle:first-child { border-top: 0; }
+.vial { width: 22px; height: 30px; border-radius: 5px 5px 7px 7px; border: 1.5px solid var(--muted); position: relative; margin-top: 2px; overflow: hidden; }
+.vial::before { content: ""; position: absolute; left: 6px; right: 6px; top: -1px; height: 5px; background: var(--muted); }
+.vial i { position: absolute; left: 0; right: 0; bottom: 0; }
+.bname { font-weight: 600; }
+.bhouse { color: var(--muted); font-size: 13px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-family: var(--f-mono); font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); }
+.chip i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+.empty { border: 1px dashed var(--line); border-radius: var(--r); padding: 16px; color: var(--muted); font-size: 14px; }
+
+.add { background: var(--surface-2); border-radius: var(--r); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.toggles { display: flex; flex-wrap: wrap; gap: 5px; }
+.toggle { font-family: var(--f-mono); font-size: 11.5px; border-radius: 999px; padding: 3px 9px; display: inline-flex; gap: 5px; align-items: center; background: var(--surface); }
+.toggle i { width: 7px; height: 7px; border-radius: 50%; }
+.toggle[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.hint { font-size: 12.5px; color: var(--muted); }
+
+.pairs { display: flex; flex-direction: column; gap: 10px; }
+.pair { border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 14px; }
+.score { font-family: var(--f-display); font-size: 26px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; text-align: center; padding-top: 2px; }
+.score small { display: block; font-family: var(--f-mono); font-size: 10px; font-weight: 400; letter-spacing: .06em; text-transform: uppercase; margin-top: 6px; }
+.meter { height: 4px; border-radius: 2px; background: var(--line); margin-top: 8px; overflow: hidden; }
+.meter b { display: block; height: 100%; }
+.pname { font-weight: 600; }
+.pname .plus { color: var(--accent); font-weight: 700; padding: 0 4px; }
+.owner { font-size: 12.5px; color: var(--muted); }
+.why { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; }
+.why li.neg { color: var(--bad); }
+.how { margin-top: 8px; font-size: 13.5px; background: var(--surface-2); border-radius: 8px; padding: 8px 10px; }
+.how b { font-weight: 600; }
+.v-signature { color: var(--good); } .v-strong { color: var(--good); } .v-try { color: var(--ok); } .v-risky { color: var(--warn); } .v-skip { color: var(--bad); }
+.bg-signature, .bg-strong { background: var(--good); } .bg-try { background: var(--ok); } .bg-risky { background: var(--warn); } .bg-skip { background: var(--bad); }
+.tester { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 8px; align-items: center; }
+.tester select { width: 100%; }
+@media (max-width: 480px) { .tester { grid-template-columns: minmax(0,1fr); } .tester .plus { text-align: center; } }
+.section { display: flex; flex-direction: column; gap: 10px; }
+.section + .section { border-top: 1px solid var(--line); padding-top: 16px; }
+footer { margin-top: 22px; font-size: 12.5px; color: var(--muted); max-width: 70ch; }
+@media (prefers-reduced-motion: no-preference) { .pair { transition: border-color .15s; } .pair:hover { border-color: var(--muted); } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="label">Fragrance layering</div>
+      <h1>Cologne Layering Lab</h1>
+      <p>Log the bottles each person owns. The lab scores every pair by how their accords work together and tells you which to spray first.</p>
+    </div>
+  </header>
+  <div id="banner" class="banner" hidden></div>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="shelf-h">
+      <div class="row between">
+        <h2 id="shelf-h">Shelves</h2>
+        <span class="label" id="sync">Loading…</span>
+      </div>
+      <div class="people" id="people" role="group" aria-label="Choose a person"></div>
+      <form class="row" id="addPerson">
+        <input type="text" id="personName" placeholder="Add a person, e.g. Jordan" maxlength="40" aria-label="Person's name">
+        <button type="submit">Add shelf</button>
+      </form>
+
+      <div id="shelf" class="section"></div>
+
+      <form class="add" id="addBottle">
+        <h3 id="addBottleH">Add a bottle</h3>
+        <div class="row">
+          <input type="text" id="bottleName" list="catalog" placeholder="Start typing: Sauvage, Santal 33…" maxlength="60" aria-label="Fragrance name" autocomplete="off">
+          <input type="text" id="bottleHouse" placeholder="House" maxlength="40" aria-label="House" style="flex:0 1 140px">
+        </div>
+        <datalist id="catalog"></datalist>
+        <div>
+          <div class="label" style="margin-bottom:6px">Main accords, strongest first</div>
+          <div class="toggles" id="toggles"></div>
+          <div class="hint" id="accHint">Known colognes fill these in. Tap to change. Pick 1–5.</div>
+        </div>
+        <div class="row"><button type="submit" class="primary" id="addBtn">Add to shelf</button><span class="hint" id="addMsg"></span></div>
+      </form>
+    </section>
+
+    <section class="panel" aria-labelledby="lab-h">
+      <h2 id="lab-h">Mix lab</h2>
+      <div class="section">
+        <div class="row between"><h3 id="bestH">Best pairs on this shelf</h3></div>
+        <div class="pairs" id="best"></div>
+      </div>
+      <div class="section" id="borrowSec">
+        <h3 id="borrowH">Borrow from a friend</h3>
+        <div class="pairs" id="borrow"></div>
+      </div>
+      <div class="section">
+        <h3>Test any two</h3>
+        <div class="tester">
+          <select id="tA" aria-label="First fragrance"></select>
+          <span class="plus label">+</span>
+          <select id="tB" aria-label="Second fragrance"></select>
+        </div>
+        <div class="pairs" id="tOut"></div>
+      </div>
+    </section>
+  </div>
+  <footer>Scores come from accord pairings perfumers commonly layer (citrus over woods, amber with tobacco, lavender with vanilla) and penalize clashes such as aquatic with gourmand. Accords for listed colognes are approximate; set them yourself if your nose disagrees. Test on skin before a big night.</footer>
+</div>
+
+<script>
+(() => {
+/* ---------- Scent model ---------- */
+const ACCORDS = {
+  citrus:     { label: "Citrus",       w: 1,   c: "hsl(48 90% 50%)" },
+  aquatic:    { label: "Aquatic",      w: 1,   c: "hsl(195 70% 50%)" },
+  green:      { label: "Green",        w: 1.5, c: "hsl(120 45% 42%)" },
+  aromatic:   { label: "Lavender/herbs", w: 2, c: "hsl(265 40% 58%)" },
+  freshspicy: { label: "Fresh spice",  w: 2,   c: "hsl(25 65% 55%)" },
+  fruity:     { label: "Fruity",       w: 2,   c: "hsl(340 65% 58%)" },
+  floral:     { label: "Floral",       w: 3,   c: "hsl(320 45% 65%)" },
+  musk:       { label: "Musk",         w: 2.5, c: "hsl(30 15% 65%)" },
+  powdery:    { label: "Powdery/iris", w: 3,   c: "hsl(280 20% 72%)" },
+  woody:      { label: "Woody",        w: 3,   c: "hsl(30 40% 38%)" },
+  leather:    { label: "Leather",      w: 4,   c: "hsl(15 45% 30%)" },
+  warmspicy:  { label: "Warm spice",   w: 4,   c: "hsl(10 70% 45%)" },
+  amber:      { label: "Amber",        w: 4,   c: "hsl(36 85% 45%)" },
+  vanilla:    { label: "Vanilla/sweet", w: 4,  c: "hsl(42 60% 70%)" },
+  tobacco:    { label: "Tobacco",      w: 4,   c: "hsl(25 50% 35%)" },
+  incense:    { label: "Incense/smoke", w: 4,  c: "hsl(220 10% 50%)" },
+  oud:        { label: "Oud",          w: 5,   c: "hsl(350 35% 30%)" },
+};
+const KEYS = Object.keys(ACCORDS);
+
+// [a, b, affinity -2..3, why]
+const RULES = [
+  ["citrus","woody",3,"Citrus lifts a dry wood base, the classic cologne structure"],
+  ["citrus","aromatic",3,"Citrus and herbs make a clean barbershop accord"],
+  ["citrus","amber",2,"Bright citrus cuts through amber's warmth"],
+  ["citrus","vanilla",2,"Citrus over vanilla reads creamy and bright"],
+  ["citrus","freshspicy",2,"Pepper and ginger sharpen the citrus"],
+  ["citrus","aquatic",2,"Two fresh profiles that stay clean together"],
+  ["citrus","green",2,"Zest and crushed leaves: crisp daytime freshness"],
+  ["citrus","fruity",2,"Fruit and zest blend into one juicy opening"],
+  ["citrus","tobacco",1,"Citrus brightens a heavy tobacco"],
+  ["citrus","incense",1,"Citrus over smoke gives a clean contrast"],
+  ["citrus","warmspicy",1,"Orange and spice is a familiar warm pairing"],
+  ["aquatic","woody",2,"Woods give a marine scent a longer-lasting base"],
+  ["aquatic","green",1,"Sea air with greenery stays light"],
+  ["aquatic","aromatic",2,"Marine notes and herbs: coastal and clean"],
+  ["aquatic","vanilla",-2,"Sea salt and sugar tend to clash"],
+  ["aquatic","oud",-2,"Oud swamps a light marine scent"],
+  ["aquatic","warmspicy",-2,"Cinnamon-type spice muddies marine notes"],
+  ["aquatic","tobacco",-1,"Tobacco fights the airy marine feel"],
+  ["aquatic","leather",-1,"Leather weighs down aquatic freshness"],
+  ["aquatic","powdery",-1,"Powder over marine notes can smell soapy-flat"],
+  ["green","woody",2,"Green notes over woods smell like a forest floor"],
+  ["green","floral",2,"Leaves and petals are a natural pairing"],
+  ["green","aromatic",2,"Grass and herbs keep it outdoorsy"],
+  ["green","vanilla",-1,"Sweetness blunts the green snap"],
+  ["aromatic","woody",3,"Lavender and woods are the backbone of fougères"],
+  ["aromatic","amber",2,"Herbs over amber give an aromatic warmth"],
+  ["aromatic","vanilla",2,"Lavender with vanilla is a proven sweet-fresh duo"],
+  ["aromatic","leather",2,"Herbs smooth out leather's edge"],
+  ["aromatic","tobacco",1,"Herbal notes freshen tobacco"],
+  ["aromatic","freshspicy",2,"Herbs and pepper stay crisp together"],
+  ["aromatic","powdery",1,"Lavender and iris share a soft barbershop feel"],
+  ["freshspicy","woody",3,"Pepper and cardamom on woods give clean spice"],
+  ["freshspicy","amber",2,"Fresh spice keeps amber from going syrupy"],
+  ["freshspicy","leather",2,"Spice and leather feel sharp and tailored"],
+  ["freshspicy","vanilla",1,"A spice edge balances sweetness"],
+  ["warmspicy","amber",3,"Warm spice and amber: cozy cold-weather depth"],
+  ["warmspicy","vanilla",3,"Cinnamon-style spice and vanilla is pure warmth"],
+  ["warmspicy","tobacco",3,"Spiced tobacco is a classic evening blend"],
+  ["warmspicy","oud",2,"Spice rounds off oud's medicinal edge"],
+  ["warmspicy","woody",2,"Warm spice settles well into woods"],
+  ["warmspicy","floral",1,"Spice can give florals depth, in small doses"],
+  ["floral","musk",2,"Musk makes florals softer and closer to skin"],
+  ["floral","woody",2,"Woods ground a floral so it reads less sweet"],
+  ["floral","oud",2,"Rose-and-oud style pairing is a Middle Eastern staple"],
+  ["floral","amber",1,"Amber warms a floral"],
+  ["floral","leather",1,"Florals soften leather"],
+  ["floral","powdery",2,"Iris powder and petals blend smoothly"],
+  ["floral","aquatic",0,""],
+  ["woody","amber",3,"Woods and amber make a rich, long-lasting base"],
+  ["woody","vanilla",2,"Vanilla rounds off dry woods"],
+  ["woody","leather",2,"Leather over woods feels rugged and dry"],
+  ["woody","oud",3,"Oud is a wood; they reinforce each other"],
+  ["woody","incense",3,"Smoke and woods: a cathedral-and-campfire mix"],
+  ["woody","tobacco",2,"Tobacco leaf sits naturally on woods"],
+  ["woody","musk",2,"Musk makes woods feel like warm skin"],
+  ["woody","powdery",2,"Iris over woods is a polished, elegant mix"],
+  ["amber","vanilla",3,"Amber and vanilla melt into a resinous sweetness"],
+  ["amber","tobacco",3,"Amber and tobacco: honeyed and smoky"],
+  ["amber","oud",3,"Amber smooths oud into something wearable"],
+  ["amber","incense",3,"Resins and smoke come from the same family"],
+  ["amber","leather",2,"Amber warms leather"],
+  ["amber","musk",2,"Musk softens amber's projection"],
+  ["vanilla","tobacco",3,"Vanilla tobacco is one of the most loved combos"],
+  ["vanilla","oud",2,"Vanilla makes oud approachable"],
+  ["vanilla","leather",1,"Sweetness softens leather"],
+  ["vanilla","fruity",1,"Fruit over vanilla goes dessert-like"],
+  ["vanilla","powdery",2,"Vanilla and iris feel soft and cosy"],
+  ["vanilla","incense",1,"Sweet smoke, nice in small doses"],
+  ["leather","tobacco",3,"Leather and tobacco: old library armchair"],
+  ["leather","oud",3,"Leather and oud are dark and intense together"],
+  ["leather","incense",2,"Smoke deepens leather"],
+  ["leather","fruity",-1,"Fruit can make leather smell off"],
+  ["tobacco","oud",2,"Two dark notes; rich but heavy"],
+  ["tobacco","incense",2,"Smoky on smoky, very evening"],
+  ["tobacco","fruity",-1,"Bright fruit fights dry tobacco"],
+  ["oud","incense",3,"Oud and incense is a traditional pairing"],
+  ["oud","fruity",-1,"Fruit and oud often clash"],
+  ["fruity","floral",2,"Fruit and flowers blend into one sweet heart"],
+  ["fruity","woody",1,"Woods anchor fruity top notes"],
+  ["fruity","musk",1,"Musk smooths fruity notes"],
+  ["powdery","musk",2,"Iris and musk feel clean and soft"],
+  ["musk","citrus",1,"Musk extends citrus, which fades fast"],
+  ["musk","vanilla",2,"Musk and vanilla: soft skin scent"],
+];
+const AFF = {};
+for (const [a,b,v,why] of RULES) { AFF[a+"|"+b] = AFF[b+"|"+a] = { v, why }; }
+function aff(a, b) {
+  if (a === b) return { v: 1, why: `Shared ${ACCORDS[a].label.toLowerCase()} note reinforces itself` };
+  if (AFF[a+"|"+b]) return AFF[a+"|"+b];
+  if (a === "musk" || b === "musk") return { v: 1, why: "Musk blends quietly with most notes" };
+  return { v: 0, why: "" };
+}
+
+const CATALOG = [
+  ["Sauvage","Dior",["freshspicy","citrus","aromatic","amber"]],
+  ["Bleu de Chanel","Chanel",["citrus","woody","aromatic","amber"]],
+  ["Aventus","Creed",["fruity","woody","citrus","musk"]],
+  ["Acqua di Giò","Giorgio Armani",["aquatic","citrus","aromatic","musk"]],
+  ["Acqua di Giò Profumo","Giorgio Armani",["aquatic","aromatic","incense","woody"]],
+  ["Eros","Versace",["vanilla","aromatic","fruity","amber"]],
+  ["Le Male","Jean Paul Gaultier",["aromatic","vanilla","powdery"]],
+  ["Le Male Elixir","Jean Paul Gaultier",["vanilla","aromatic","tobacco","amber"]],
+  ["Ultra Male","Jean Paul Gaultier",["vanilla","fruity","aromatic","amber"]],
+  ["Y Eau de Parfum","Yves Saint Laurent",["aromatic","fruity","freshspicy","woody"]],
+  ["La Nuit de l'Homme","Yves Saint Laurent",["freshspicy","aromatic","woody"]],
+  ["Spicebomb Extreme","Viktor&Rolf",["tobacco","warmspicy","vanilla"]],
+  ["Tobacco Vanille","Tom Ford",["tobacco","vanilla","warmspicy","amber"]],
+  ["Oud Wood","Tom Ford",["oud","woody","freshspicy","amber"]],
+  ["Tuscan Leather","Tom Ford",["leather","fruity","woody"]],
+  ["Ombré Leather","Tom Ford",["leather","floral","woody"]],
+  ["Noir Extreme","Tom Ford",["warmspicy","vanilla","amber","woody"]],
+  ["Grey Vetiver","Tom Ford",["woody","citrus","green","aromatic"]],
+  ["Neroli Portofino","Tom Ford",["citrus","floral","aromatic"]],
+  ["Baccarat Rouge 540","Maison Francis Kurkdjian",["amber","woody","floral"]],
+  ["Oud Satin Mood","Maison Francis Kurkdjian",["oud","vanilla","floral","amber"]],
+  ["Santal 33","Le Labo",["woody","leather","aromatic","freshspicy"]],
+  ["Another 13","Le Labo",["musk","woody","amber"]],
+  ["Terre d'Hermès","Hermès",["citrus","woody","freshspicy","green"]],
+  ["Dior Homme Intense","Dior",["powdery","floral","woody","amber"]],
+  ["Fahrenheit","Dior",["leather","floral","woody","freshspicy"]],
+  ["Light Blue Pour Homme","Dolce & Gabbana",["citrus","aquatic","aromatic","woody"]],
+  ["The One Eau de Parfum","Dolce & Gabbana",["tobacco","amber","warmspicy","citrus"]],
+  ["Allure Homme Sport","Chanel",["citrus","aquatic","amber","musk"]],
+  ["Silver Mountain Water","Creed",["green","citrus","musk","fruity"]],
+  ["Green Irish Tweed","Creed",["green","floral","woody","aromatic"]],
+  ["Layton","Parfums de Marly",["fruity","aromatic","vanilla","warmspicy"]],
+  ["Herod","Parfums de Marly",["tobacco","vanilla","warmspicy","woody"]],
+  ["Jazz Club","Maison Margiela",["tobacco","vanilla","fruity"]],
+  ["By the Fireplace","Maison Margiela",["woody","vanilla","warmspicy","incense"]],
+  ["Wanted by Night","Azzaro",["warmspicy","tobacco","fruity","amber"]],
+  ["Stronger With You","Emporio Armani",["vanilla","warmspicy","aromatic","amber"]],
+  ["Encre Noire","Lalique",["woody","musk","green"]],
+  ["Wood Sage & Sea Salt","Jo Malone",["aquatic","aromatic","woody"]],
+  ["Musc Ravageur","Frédéric Malle",["musk","vanilla","warmspicy","amber"]],
+  ["Aqva Pour Homme","Bvlgari",["aquatic","green","woody"]],
+  ["Explorer","Montblanc",["woody","citrus","leather","aromatic"]],
+  ["Born in Roma Uomo","Valentino",["vanilla","aromatic","woody","freshspicy"]],
+  ["Cedrat Boisé","Mancera",["citrus","woody","fruity","leather"]],
+  ["Black Afgano","Nasomatto",["incense","oud","woody","tobacco"]],
+  ["Interlude Man","Amouage",["incense","amber","leather","oud"]],
+  ["Erba Pura","Xerjoff",["fruity","citrus","amber","musk"]],
+  ["Molecule 01","Escentric Molecules",["woody","musk"]],
+  ["Ambre Nuit","Dior",["amber","floral","woody"]],
+];
+
+function weightOf(acc) {
+  if (!acc.length) return 2.5;
+  let s = 0, t = 0;
+  acc.forEach((a, i) => { const k = acc.length - i; s += ACCORDS[a].w * k; t += k; });
+  return s / t;
+}
+function dominance(acc) { const n = acc.length, tot = n*(n+1)/2; return acc.map((a,i) => [(n-i)/tot, a]); }
+
+function scorePair(A, B) {
+  const da = dominance(A.accords), dbm = dominance(B.accords);
+  let total = 0; const contrib = [];
+  for (const [wa, a] of da) for (const [wb, b] of dbm) {
+    const r = aff(a, b); const c = wa * wb * r.v; total += c;
+    if (r.why) contrib.push({ c, why: r.why });
+  }
+  let score = 40 + total * 22;
+  const notes = [];
+  const setA = new Set(A.accords), setB = new Set(B.accords);
+  const inter = [...setA].filter(x => setB.has(x)).length;
+  const jac = inter / new Set([...setA, ...setB]).size;
+  if (jac >= 0.75) { score -= 15; notes.push({ c: -1, why: "Nearly the same accords, so layering adds little" }); }
+  const wA = weightOf(A.accords), wB = weightOf(B.accords);
+  if (wA >= 3.9 && wB >= 3.9) { score -= 10; notes.push({ c: -1, why: "Both are heavy; easy to overdo, go light on sprays" }); }
+  const diff = Math.abs(wA - wB);
+  if (diff >= 0.8 && diff <= 2.6) score += 6;
+  score = Math.max(0, Math.min(100, Math.round(score)));
+
+  const pos = contrib.filter(x => x.c > 0).sort((x,y) => y.c - x.c);
+  const neg = contrib.filter(x => x.c < 0).sort((x,y) => x.c - y.c);
+  const reasons = []; const seen = new Set();
+  for (const p of pos) { if (!seen.has(p.why)) { seen.add(p.why); reasons.push({ c: 1, why: p.why }); } if (reasons.length === 2) break; }
+  if (neg[0] && neg[0].c < -0.03) reasons.push({ c: -1, why: neg[0].why });
+  reasons.push(...notes);
+
+  const [base, top] = wA >= wB ? [A, B] : [B, A];
+  const wBase = Math.max(wA, wB), wTop = Math.min(wA, wB), avg = (wA + wB) / 2;
+  let how;
+  if (wBase - wTop >= 1.5) how = `Spray <b>${esc(base.name)}</b> first, 1 spray on the chest. Let it dry, then 2 sprays of <b>${esc(top.name)}</b> on the neck.`;
+  else if (wBase - wTop >= 0.5) how = `<b>${esc(base.name)}</b> on the chest, <b>${esc(top.name)}</b> on the neck, 1 spray each.`;
+  else how = `Equal weight: 1 spray of each on the same spots, <b>${esc(base.name)}</b> first.`;
+  const when = avg <= 2.2 ? "Warm days, daytime" : avg >= 3.5 ? "Cool weather, evenings" : "Any season";
+  const v = score >= 80 ? ["signature","Signature"] : score >= 65 ? ["strong","Strong"] : score >= 50 ? ["try","Try it"] : score >= 35 ? ["risky","Risky"] : ["skip","Skip"];
+  return { score, reasons, how, when, v };
+}
+
+/* ---------- Helpers ---------- */
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" })[c]); }
+const $ = id => document.getElementById(id);
+const rid = () => Math.random().toString(36).slice(2, 10);
+const norm = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
+function cleanAccords(a) { return (Array.isArray(a) ? a : []).filter(k => ACCORDS[k]).slice(0, 5); }
+function cleanShelf(id, d) {
+  return { id, name: String(d?.name || "Unnamed").slice(0, 40),
+    bottles: (Array.isArray(d?.bottles) ? d.bottles : []).slice(0, 80).map(b => ({ id: String(b.id || rid()), name: String(b.name || "?").slice(0, 60), house: String(b.house || "").slice(0, 40), accords: cleanAccords(b.accords) })).filter(b => b.accords.length) };
+}
+
+/* ---------- State ---------- */
+const EXAMPLE = { id: "__example", name: "Example shelf", example: true, bottles: ["Bleu de Chanel","Tobacco Vanille","Terre d'Hermès","Acqua di Giò","Santal 33"].map(n => { const c = CATALOG.find(x => x[0] === n); return { id: "ex" + norm(n), name: c[0], house: c[1], accords: c[2].slice() }; }) };
+let shelves = [];        // live shelves from db
+let localShelves = [];   // used when db is unavailable
+let mode = "loading";    // loading | live | local
+let canWrite = true;
+let selected = null;
+let picked = [];
+let db = null;
+const writeChains = {};
+
+function allShelves() {
+  const list = mode === "live" ? shelves : localShelves;
+  return list.length ? list : [EXAMPLE];
+}
+function current() { const all = allShelves(); return all.find(s => s.id === selected) || all[0]; }
+
+async function save(shelf) {
+  if (shelf.example) return;
+  if (mode !== "live") { render(); return; }
+  const body = { name: shelf.name, bottles: shelf.bottles, updatedAt: new Date().toISOString() };
+  const prev = writeChains[shelf.id] || Promise.resolve();
+  writeChains[shelf.id] = prev.then(() => db.doc("shelves/" + shelf.id).set(body)).catch(e => {
+    if (e?.code === "invalid_argument") { canWrite = false; showBanner("You can view these shelves but not change them. Ask the owner for Contributor access."); }
+    else if (e?.code === "quota_exceeded") showBanner("Storage is full. Remove a shelf or some bottles, then try again.");
+    else showBanner("Couldn't save just now. Check your connection and try again.");
+    render();
+  });
+  return writeChains[shelf.id];
+}
+function showBanner(t) { const b = $("banner"); b.textContent = t; b.hidden = !t; }
+
+/* ---------- Render ---------- */
+function chip(k) { return `<span class="chip"><i style="background:${ACCORDS[k].c}"></i>${esc(ACCORDS[k].label)}</span>`; }
+function vialColor(acc) { return ACCORDS[acc[0]]?.c || "var(--muted)"; }
+
+function render() {
+  const all = allShelves(); const cur = current();
+  if (cur) selected = cur.id;
+  $("sync").textContent = mode === "live" ? "Shared · live" : mode === "local" ? "This visit only" : "Loading…";
+
+  $("people").innerHTML = all.map(s => `<button type="button" class="person" data-id="${esc(s.id)}" aria-pressed="${s.id === cur.id}">${esc(s.name)}<span class="n">${s.bottles.length}</span></button>`).join("");
+
+  const ro = !canWrite || cur.example;
+  let html = `<div class="row between"><div class="row"><h3>${esc(cur.name)}'s bottles</h3>${cur.example ? '<span class="tag-ex">Example, not saved</span>' : ""}</div>`;
+  if (!cur.example && canWrite) html += `<button type="button" class="ghost" id="rmShelf">Remove shelf</button>`;
+  html += `</div>`;
+  if (cur.example) html += `<div class="empty">This sample shows how the lab works. Add a person above to start a real shelf; the sample disappears once one exists.</div>`;
+  if (!cur.bottles.length) html += `<div class="empty">No bottles yet. Add the first one below.</div>`;
+  else html += `<ul class="bottles">${cur.bottles.map(b => `<li class="bottle"><span class="vial" aria-hidden="true"><i style="top:35%;background:${vialColor(b.accords)};opacity:.75"></i></span><div style="min-width:0"><div class="bname">${esc(b.name)}</div>${b.house ? `<div class="bhouse">${esc(b.house)}</div>` : ""}<div class="chips">${b.accords.map(chip).join("")}</div></div>${ro ? "<span></span>" : `<button type="button" class="ghost" data-rm="${esc(b.id)}" aria-label="Remove ${esc(b.name)}">Remove</button>`}</li>`).join("")}</ul>`;
+  $("shelf").innerHTML = html;
+
+  $("addBottle").hidden = ro;
+  $("addPerson").hidden = !canWrite;
+  $("addBottleH").textContent = `Add a bottle to ${cur.name}'s shelf`;
+
+  // Best pairs on this shelf
+  $("bestH").textContent = `Best pairs on ${cur.name}'s shelf`;
+  const pairs = [];
+  for (let i = 0; i < cur.bottles.length; i++) for (let j = i + 1; j < cur.bottles.length; j++)
+    pairs.push({ a: cur.bottles[i], b: cur.bottles[j], r: scorePair(cur.bottles[i], cur.bottles[j]) });
+  pairs.sort((x, y) => y.r.score - x.r.score);
+  $("best").innerHTML = cur.bottles.length < 2
+    ? `<div class="empty">Add at least two bottles to see pairings.</div>`
+    : pairs.slice(0, 5).map(p => pairCard(p.a, p.b, p.r)).join("") + (pairs.length > 5 ? `<div class="hint">Showing the top 5 of ${pairs.length} pairs. Use “Test any two” for the rest.</div>` : "");
+
+  // Borrow
+  const others = all.filter(s => s.id !== cur.id && !s.example);
+  const borrow = [];
+  for (const mine of cur.bottles) for (const s of others) for (const theirs of s.bottles) {
+    if (norm(theirs.name) === norm(mine.name) || cur.bottles.some(x => norm(x.name) === norm(theirs.name))) continue;
+    borrow.push({ a: mine, b: theirs, owner: s.name, r: scorePair(mine, theirs) });
+  }
+  borrow.sort((x, y) => y.r.score - x.r.score);
+  $("borrowSec").hidden = cur.example;
+  $("borrowH").textContent = `Borrow from a friend`;
+  $("borrow").innerHTML = !others.length ? `<div class="empty">Add another person's shelf to find pairings across collections.</div>`
+    : !borrow.length ? `<div class="empty">No new bottles to borrow yet.</div>`
+    : borrow.slice(0, 3).map(p => pairCard(p.a, p.b, p.r, `${esc(p.b.name)} is on ${esc(p.owner)}'s shelf`)).join("");
+
+  // Tester options
+  const opts = [];
+  for (const s of all) for (const b of s.bottles) opts.push({ key: s.id + "::" + b.id, label: `${b.name} (${s.name})`, b });
+  const fill = (sel, idx) => {
+    const prev = sel.value;
+    sel.innerHTML = opts.map(o => `<option value="${esc(o.key)}">${esc(o.label)}</option>`).join("");
+    if (opts.some(o => o.key === prev)) sel.value = prev; else if (opts[idx]) sel.value = opts[idx].key;
+  };
+  fill($("tA"), 0); fill($("tB"), 1);
+  renderTest(opts);
+}
+let lastOpts = [];
+function renderTest(opts) {
+  if (opts) lastOpts = opts;
+  const a = lastOpts.find(o => o.key === $("tA").value), b = lastOpts.find(o => o.key === $("tB").value);
+  if (!a || !b) { $("tOut").innerHTML = `<div class="empty">Add bottles to test a pair.</div>`; return; }
+  if (a.key === b.key || norm(a.b.name) === norm(b.b.name)) { $("tOut").innerHTML = `<div class="empty">Pick two different fragrances.</div>`; return; }
+  $("tOut").innerHTML = pairCard(a.b, b.b, scorePair(a.b, b.b));
+}
+function pairCard(a, b, r, sub) {
+  return `<article class="pair"><div><div class="score v-${r.v[0]}">${r.score}<small>${r.v[1]}</small></div><div class="meter"><b class="bg-${r.v[0]}" style="width:${r.score}%"></b></div></div>
+  <div style="min-width:0"><div class="pname">${esc(a.name)}<span class="plus">+</span>${esc(b.name)}</div>${sub ? `<div class="owner">${sub}</div>` : ""}
+  <ul class="why">${r.reasons.map(x => `<li class="${x.c < 0 ? "neg" : ""}">${esc(x.why)}</li>`).join("")}</ul>
+  <div class="how">${r.how}<br><span class="muted">${r.when}</span></div></div></article>`;
+}
+
+/* ---------- Add-bottle form ---------- */
+$("catalog").innerHTML = CATALOG.map(c => `<option value="${esc(c[0])}">${esc(c[1])}</option>`).join("");
+function renderToggles() {
+  $("toggles").innerHTML = KEYS.map(k => { const i = picked.indexOf(k); return `<button type="button" class="toggle" data-acc="${k}" aria-pressed="${i >= 0}"><i style="background:${ACCORDS[k].c}"></i>${esc(ACCORDS[k].label)}${i >= 0 ? ` <span class="muted">${i + 1}</span>` : ""}</button>`; }).join("");
+}
+$("toggles").addEventListener("click", e => {
+  const t = e.target.closest("[data-acc]"); if (!t) return;
+  const k = t.dataset.acc; const i = picked.indexOf(k);
+  if (i >= 0) picked.splice(i, 1); else if (picked.length < 5) picked.push(k);
+  renderToggles();
+});
+$("bottleName").addEventListener("input", () => {
+  const c = CATALOG.find(x => norm(x[0]) === norm($("bottleName").value));
+  if (c) { $("bottleHouse").value = c[1]; picked = c[2].slice(); renderToggles(); $("accHint").textContent = "Filled in from the catalog. Tap to adjust."; }
+});
+$("addBottle").addEventListener("submit", async e => {
+  e.preventDefault();
+  const cur = current(); const name = $("bottleName").value.trim();
+  if (!name) { $("addMsg").textContent = "Enter the fragrance name."; return; }
+  if (!picked.length) { $("addMsg").textContent = "Pick at least one accord."; return; }
+  if (cur.bottles.some(b => norm(b.name) === norm(name))) { $("addMsg").textContent = `${name} is already on this shelf.`; return; }
+  cur.bottles.push({ id: rid(), name, house: $("bottleHouse").value.trim(), accords: picked.slice() });
+  $("bottleName").value = ""; $("bottleHouse").value = ""; picked = []; renderToggles();
+  $("addMsg").textContent = `Added ${name}.`;
+  render(); await save(cur);
+});
+
+/* ---------- Shelf actions ---------- */
+$("people").addEventListener("click", e => { const t = e.target.closest("[data-id]"); if (t) { selected = t.dataset.id; render(); } });
+$("addPerson").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("personName").value.trim(); if (!name) return;
+  const shelf = { id: rid(), name: name.slice(0, 40), bottles: [] };
+  $("personName").value = "";
+  if (mode === "live") shelves.push(shelf); else localShelves.push(shelf);
+  selected = shelf.id; render(); await save(shelf);
+});
+let armed = false;
+$("shelf").addEventListener("click", async e => {
+  const cur = current();
+  const rm = e.target.closest("[data-rm]");
+  if (rm) { cur.bottles = cur.bottles.filter(b => b.id !== rm.dataset.rm); render(); await save(cur); return; }
+  if (e.target.id === "rmShelf") {
+    if (!armed) { armed = true; e.target.textContent = `Confirm: remove ${cur.name}'s shelf`; e.target.classList.add("danger"); setTimeout(() => { armed = false; render(); }, 4000); return; }
+    armed = false;
+    if (mode === "live") { shelves = shelves.filter(s => s.id !== cur.id); render(); try { await db.doc("shelves/" + cur.id).delete(); } catch { showBanner("Couldn't remove that shelf. Try again."); } }
+    else { localShelves = localShelves.filter(s => s.id !== cur.id); render(); }
+  }
+});
+$("tA").addEventListener("change", () => renderTest());
+$("tB").addEventListener("change", () => renderTest());
+
+/* ---------- Boot ---------- */
+renderToggles(); render();
+(async () => {
+  try { db = await window.claude?.use?.("db"); } catch { db = null; }
+  if (!db) { mode = "local"; showBanner("Saving isn't available in this view, so changes last only until you close the page."); render(); return; }
+  try {
+    const user = await window.claude.use("user");
+    const w = user ? await user.can("data.write") : null;
+    if (w === false) canWrite = false;
+  } catch {}
+  let first = true;
+  const timer = setTimeout(() => { if (first) { mode = "live"; showBanner("Can't reach saved shelves yet. They will appear when the connection returns."); render(); } }, 10000);
+  db.collection("shelves").onSnapshot(snap => {
+    if (!snap.metadata.fromCache) { clearTimeout(timer); if (first) showBanner(""); first = false; }
+    mode = "live";
+    shelves = snap.docs.map(d => cleanShelf(d.id, d.data())).sort((a, b) => a.name.localeCompare(b.name));
+    render();
+  }, err => { clearTimeout(timer); mode = "live"; showBanner("Shelves stopped syncing. Reload the page to reconnect."); render(); });
+})();
+})();
+</script>
