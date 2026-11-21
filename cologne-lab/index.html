@@ -99,6 +99,18 @@ input[type=text] { flex: 1 1 180px; }
 @media (max-width: 480px) { .tester { grid-template-columns: minmax(0,1fr); } .tester .plus { text-align: center; } }
 .section { display: flex; flex-direction: column; gap: 10px; }
 .section + .section { border-top: 1px solid var(--line); padding-top: 16px; }
+.occ { display: flex; flex-wrap: wrap; gap: 6px; }
+.occ button { border-radius: 999px; padding: 5px 12px; background: var(--surface-2); }
+.occ button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.acts button { font-size: 13px; padding: 4px 10px; border-radius: 999px; }
+.acts .vote[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.acts .cnt { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); margin-left: 3px; }
+.ask { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.ask .qchip { font-size: 12.5px; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); }
+.answer { white-space: pre-wrap; font-size: 13.5px; }
+.answer:empty { display: none; }
+.nb { border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
 footer { margin-top: 22px; font-size: 12.5px; color: var(--muted); max-width: 70ch; }
 @media (prefers-reduced-motion: no-preference) { .pair { transition: border-color .15s; } .pair:hover { border-color: var(--muted); } }
 </style>
@@ -146,12 +158,20 @@ footer { margin-top: 22px; font-size: 12.5px; color: var(--muted); max-width: 70
     <section class="panel" aria-labelledby="lab-h">
       <h2 id="lab-h">Mix lab</h2>
       <div class="section">
+        <div class="label">Occasion</div>
+        <div class="occ" id="occ" role="group" aria-label="Occasion"></div>
+      </div>
+      <div class="section">
         <div class="row between"><h3 id="bestH">Best pairs on this shelf</h3></div>
         <div class="pairs" id="best"></div>
       </div>
       <div class="section" id="borrowSec">
         <h3 id="borrowH">Borrow from a friend</h3>
         <div class="pairs" id="borrow"></div>
+      </div>
+      <div class="section">
+        <h3 id="nextH">Next bottle to buy</h3>
+        <div class="pairs" id="next"></div>
       </div>
       <div class="section">
         <h3>Test any two</h3>
@@ -427,8 +447,54 @@ function scorePair(A, B) {
   else if (wBase - wTop >= 0.5) how = `<b>${esc(base.name)}</b> on the chest, <b>${esc(top.name)}</b> on the neck, 1 spray each.`;
   else how = `Equal weight: 1 spray of each on the same spots, <b>${esc(base.name)}</b> first.`;
   const when = avg <= 2.2 ? "Warm days, daytime" : avg >= 3.5 ? "Cool weather, evenings" : "Any season";
-  const v = score >= 80 ? ["signature","Signature"] : score >= 65 ? ["strong","Strong"] : score >= 50 ? ["try","Try it"] : score >= 35 ? ["risky","Risky"] : ["skip","Skip"];
-  return { score, reasons, how, when, v };
+  return { score, reasons, how, when, avgW: avg };
+}
+
+/* ---------- Occasions, ratings, final score ---------- */
+const OCC = {
+  any:    { label: "Any time" },
+  office: { label: "Office",      good: "Light enough for a shared office", bad: "Likely too loud for the office" },
+  summer: { label: "Summer day",  good: "Fresh enough for hot weather",     bad: "Too heavy for heat" },
+  date:   { label: "Date night",  good: "Warm, close-up appeal for a date", bad: "Not much date-night warmth" },
+  cold:   { label: "Cold weather", good: "Rich enough to carry in cold air", bad: "Too light to last in the cold" },
+};
+let occasion = "any";
+try { const o = localStorage.getItem("occ"); if (OCC[o]) occasion = o; } catch {}
+function occasionAdj(occ, A, B, w) {
+  const s = new Set([...A.accords, ...B.accords]);
+  const sum = (keys, pts) => keys.reduce((t, k) => t + (s.has(k) ? pts : 0), 0);
+  let adj = 0;
+  if (occ === "office") { if (w > 3.2) adj -= (w - 3.2) * 16; adj += sum(["oud","incense","tobacco"], -5) + sum(["musk","citrus","aromatic","powdery"], 3); }
+  if (occ === "summer") { if (w > 2.3) adj -= (w - 2.3) * 14; adj += sum(["citrus","aquatic","green"], 4) + sum(["vanilla","oud","amber","tobacco","warmspicy"], -5); }
+  if (occ === "date")   { adj -= Math.abs(w - 3.5) * 9; adj += sum(["vanilla","amber","musk","warmspicy","floral"], 3); }
+  if (occ === "cold")   { if (w < 3.3) adj -= (3.3 - w) * 14; adj += sum(["amber","vanilla","tobacco","warmspicy","oud","incense"], 4) + sum(["aquatic"], -8); }
+  return Math.max(-30, Math.min(15, Math.round(adj)));
+}
+const pairKey = (A, B) => [norm(A.name), norm(B.name)].sort().join("__");
+let uid = null, ratingDocs = {}, myVotes = {}, votesLoaded = false, ratingAgg = {};
+function recomputeAgg() {
+  const src = mode === "live" ? { ...ratingDocs } : {};
+  src[uid || "me"] = myVotes;
+  ratingAgg = {};
+  for (const pairs of Object.values(src)) for (const [k, v] of Object.entries(pairs || {})) {
+    const g = ratingAgg[k] || (ratingAgg[k] = { up: 0, down: 0 });
+    if (v === 1) g.up++; else if (v === -1) g.down++;
+  }
+}
+function verdict(score) { return score >= 80 ? ["signature","Signature"] : score >= 65 ? ["strong","Strong"] : score >= 50 ? ["try","Try it"] : score >= 35 ? ["risky","Risky"] : ["skip","Skip"]; }
+function evaluate(A, B) {
+  const r = scorePair(A, B); let score = r.score; const reasons = r.reasons.slice();
+  if (occasion !== "any") {
+    const adj = occasionAdj(occasion, A, B, r.avgW); score += adj;
+    if (adj >= 4) reasons.unshift({ c: 1, why: OCC[occasion].good }); else if (adj <= -4) reasons.push({ c: -1, why: OCC[occasion].bad });
+  }
+  const key = pairKey(A, B), g = ratingAgg[key];
+  if (g && (g.up || g.down)) {
+    const net = g.up - g.down; score += Math.max(-24, Math.min(24, net * 8));
+    reasons.push({ c: net >= 0 ? 1 : -1, why: `Rated here: ${g.up} liked it, ${g.down} didn't` });
+  }
+  score = Math.max(0, Math.min(100, Math.round(score)));
+  return { ...r, score, reasons, v: verdict(score), key };
 }
 
 /* ---------- Helpers ---------- */
@@ -502,25 +568,35 @@ function render() {
   $("bestH").textContent = `Best pairs on ${cur.name}'s shelf`;
   const pairs = [];
   for (let i = 0; i < cur.bottles.length; i++) for (let j = i + 1; j < cur.bottles.length; j++)
-    pairs.push({ a: cur.bottles[i], b: cur.bottles[j], r: scorePair(cur.bottles[i], cur.bottles[j]) });
+    pairs.push({ a: cur.bottles[i], b: cur.bottles[j], r: evaluate(cur.bottles[i], cur.bottles[j]) });
   pairs.sort((x, y) => y.r.score - x.r.score);
+  $("occ").innerHTML = Object.entries(OCC).map(([k, o]) => `<button type="button" data-occ="${k}" aria-pressed="${k === occasion}">${esc(o.label)}</button>`).join("");
   $("best").innerHTML = cur.bottles.length < 2
     ? `<div class="empty">Add at least two bottles to see pairings.</div>`
-    : pairs.slice(0, 5).map(p => pairCard(p.a, p.b, p.r)).join("") + (pairs.length > 5 ? `<div class="hint">Showing the top 5 of ${pairs.length} pairs. Use “Test any two” for the rest.</div>` : "");
+    : pairs.slice(0, 5).map(p => pairCard(p.a, p.b, p.r, "", "best")).join("") + (pairs.length > 5 ? `<div class="hint">Showing the top 5 of ${pairs.length} pairs. Use “Test any two” for the rest.</div>` : "");
 
   // Borrow
   const others = all.filter(s => s.id !== cur.id && !s.example);
   const borrow = [];
   for (const mine of cur.bottles) for (const s of others) for (const theirs of s.bottles) {
     if (norm(theirs.name) === norm(mine.name) || cur.bottles.some(x => norm(x.name) === norm(theirs.name))) continue;
-    borrow.push({ a: mine, b: theirs, owner: s.name, r: scorePair(mine, theirs) });
+    borrow.push({ a: mine, b: theirs, owner: s.name, r: evaluate(mine, theirs) });
   }
   borrow.sort((x, y) => y.r.score - x.r.score);
   $("borrowSec").hidden = cur.example;
   $("borrowH").textContent = `Borrow from a friend`;
   $("borrow").innerHTML = !others.length ? `<div class="empty">Add another person's shelf to find pairings across collections.</div>`
     : !borrow.length ? `<div class="empty">No new bottles to borrow yet.</div>`
-    : borrow.slice(0, 3).map(p => pairCard(p.a, p.b, p.r, `${esc(p.b.name)} is on ${esc(p.owner)}'s shelf`)).join("");
+    : borrow.slice(0, 3).map(p => pairCard(p.a, p.b, p.r, `${esc(p.b.name)} is on ${esc(p.owner)}'s shelf`, "borrow")).join("");
+
+  // Next bottle to buy
+  $("nextH").textContent = `Next bottle for ${cur.name}`;
+  const nb = nextBottles(cur);
+  const canAdd = canWrite && !cur.example;
+  $("next").innerHTML = !cur.bottles.length ? `<div class="empty">Add a bottle first. Suggestions come from what pairs best with the shelf.</div>`
+    : nb.map(n => `<article class="nb"><div class="row between" style="align-items:start"><div style="min-width:0"><div class="bname">${esc(n.cand.name)}</div><div class="bhouse">${esc(n.cand.house)} · ${esc(n.aud)}</div></div>${canAdd ? `<button type="button" data-addcat="${esc(n.cand.name)}">I bought it</button>` : ""}</div>
+      <div class="hint">${n.strong.length ? `Strong match with ${n.strong.length} of ${cur.bottles.length} bottles on this shelf. ` : ""}Best with ${esc(n.best.b.name)} (${n.best.s}).</div>
+      <div class="chips">${n.cand.accords.map(chip).join("")}</div></article>`).join("");
 
   // Tester options
   const opts = [];
@@ -531,6 +607,7 @@ function render() {
     if (opts.some(o => o.key === prev)) sel.value = prev; else if (opts[idx]) sel.value = opts[idx].key;
   };
   fill($("tA"), 0); fill($("tB"), 1);
+  if ($("tA").value === $("tB").value && opts.length > 1) $("tB").value = opts.find(o => o.key !== $("tA").value).key;
   renderTest(opts);
 }
 let lastOpts = [];
@@ -539,14 +616,92 @@ function renderTest(opts) {
   const a = lastOpts.find(o => o.key === $("tA").value), b = lastOpts.find(o => o.key === $("tB").value);
   if (!a || !b) { $("tOut").innerHTML = `<div class="empty">Add bottles to test a pair.</div>`; return; }
   if (a.key === b.key || norm(a.b.name) === norm(b.b.name)) { $("tOut").innerHTML = `<div class="empty">Pick two different fragrances.</div>`; return; }
-  $("tOut").innerHTML = pairCard(a.b, b.b, scorePair(a.b, b.b));
+  $("tOut").innerHTML = pairCard(a.b, b.b, evaluate(a.b, b.b), "", "test");
 }
-function pairCard(a, b, r, sub) {
+function nextBottles(cur) {
+  if (!cur.bottles.length) return [];
+  const own = new Set(cur.bottles.map(b => norm(b.name)));
+  const out = [];
+  for (const c of CATALOG) {
+    if (own.has(norm(c[0]))) continue;
+    const cand = { id: "cat" + norm(c[0]), name: c[0], house: c[1], accords: c[2] };
+    const sc = cur.bottles.map(b => ({ b, s: evaluate(cand, b).score })).sort((x, y) => y.s - x.s);
+    const strong = sc.filter(x => x.s >= 65), top = sc.slice(0, 3);
+    out.push({ cand, aud: c[3], strong, best: sc[0], rank: strong.length * 10 + top.reduce((t, x) => t + x.s, 0) / top.length });
+  }
+  return out.sort((x, y) => y.rank - x.rank).slice(0, 3);
+}
+
+/* ---------- Pair cards: votes + Ask Claude ---------- */
+const cardPairs = {}, askState = {};
+let sampleFn = null;
+const canRate = () => canWrite && (mode === "local" || !!uid);
+const QUICK = ["Good for a date?", "Which goes on top, and how many sprays?", "What occasion suits this?"];
+function pairCard(a, b, r, sub, sec) {
+  const key = r.key; cardPairs[key] = { a, b, r };
+  const g = ratingAgg[key] || { up: 0, down: 0 }, mine = myVotes[key];
+  const st = askState[key];
+  let acts = "";
+  if (canRate()) acts += `<button type="button" class="vote" data-vote="1" data-key="${key}" aria-pressed="${mine === 1}">👍 Liked it<span class="cnt">${g.up}</span></button><button type="button" class="vote" data-vote="-1" data-key="${key}" aria-pressed="${mine === -1}">👎 Not for me<span class="cnt">${g.down}</span></button>`;
+  else if (g.up || g.down) acts += `<span class="hint">👍 ${g.up} · 👎 ${g.down}</span>`;
+  if (sampleFn) acts += `<button type="button" data-ask="${key}" aria-expanded="${!!st?.open}">Ask Claude</button>`;
+  let ask = "";
+  if (sampleFn && st?.open) ask = `<div class="ask">
+    <div class="row">${QUICK.map(q => `<button type="button" class="qchip" data-q="${esc(q)}" data-key="${key}" ${st.busy ? "disabled" : ""}>${esc(q)}</button>`).join("")}</div>
+    <form class="row" data-askform="${key}"><input type="text" id="ask-${sec}-${key}" value="${esc(st.draft || "")}" placeholder="Ask your own question about this pair" maxlength="200" aria-label="Question for Claude"><button type="submit" class="primary" ${st.busy ? "disabled" : ""}>Ask</button>${st.busy ? `<button type="button" data-stop="${key}">Stop</button>` : ""}</form>
+    <div class="answer" data-ans="${key}" aria-live="polite">${esc(st.text || "")}</div></div>`;
   return `<article class="pair"><div><div class="score v-${r.v[0]}">${r.score}<small>${r.v[1]}</small></div><div class="meter"><b class="bg-${r.v[0]}" style="width:${r.score}%"></b></div></div>
   <div style="min-width:0"><div class="pname">${esc(a.name)}<span class="plus">+</span>${esc(b.name)}</div>${sub ? `<div class="owner">${sub}</div>` : ""}
   <ul class="why">${r.reasons.map(x => `<li class="${x.c < 0 ? "neg" : ""}">${esc(x.why)}</li>`).join("")}</ul>
-  <div class="how">${r.how}<br><span class="muted">${r.when}</span></div></div></article>`;
+  <div class="how">${r.how}<br><span class="muted">${r.when}</span></div>${acts ? `<div class="acts">${acts}</div>` : ""}${ask}</div></article>`;
 }
+function paintAnswer(key) { const t = askState[key]?.text || ""; document.querySelectorAll(`[data-ans="${key}"]`).forEach(el => { el.textContent = t; }); }
+async function askClaude(key, q) {
+  const st = askState[key], p = cardPairs[key];
+  if (!st || !p || st.busy || !sampleFn || !q.trim()) return;
+  st.busy = true; st.text = "Thinking…"; st.ctl = new AbortController(); render();
+  const desc = x => `${x.name}${x.house ? " by " + x.house : ""} (main accords: ${x.accords.map(k => ACCORDS[k].label).join(", ")})`;
+  const prompt = `You are a perfumer giving layering advice to a friend. They want to wear two fragrances together:\n1. ${desc(p.a)}\n2. ${desc(p.b)}\nA simple accord-matching app scored this pair ${p.r.score}/100 ("${p.r.v[1]}").${occasion !== "any" ? ` They are choosing for: ${OCC[occasion].label}.` : ""}\n\nTheir question: ${q.trim().slice(0, 200)}\n\nAnswer in under 90 words, plain text, no markdown or headings. Be concrete about sprays, placement and occasions. If the pairing is a bad idea, say so and why. If you are unsure about a fragrance's real notes, say so briefly.`;
+  try {
+    await sampleFn(prompt, { signal: st.ctl.signal, onText: ({ text }) => { st.text = text; paintAnswer(key); } });
+  } catch (e) {
+    const code = e?.code;
+    if (code === "cancelled") st.text = e.text || "";
+    else if (["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(code)) { sampleFn = null; st.text = ""; showBanner("Ask Claude isn't available for you on this page, so that button is hidden."); }
+    else if (code === "rate_limited") st.text = (e.text ? e.text + "\n\n" : "") + "Too many questions right now. Try again in a minute.";
+    else if (code === "refused") st.text = "Claude didn't answer that one. Try rewording the question.";
+    else st.text = (e?.text ? e.text + "\n\n" : "") + "The answer was cut off. Ask again to retry.";
+  } finally { st.busy = false; render(); }
+}
+async function vote(key, v) {
+  if (myVotes[key] === v) delete myVotes[key]; else myVotes[key] = v;
+  recomputeAgg(); render();
+  if (mode !== "live" || !uid) return;
+  const body = { pairs: { ...myVotes }, updatedAt: new Date().toISOString() };
+  const prev = writeChains.__votes || Promise.resolve();
+  writeChains.__votes = prev.then(() => db.doc("ratings/" + uid).set(body)).catch(() => showBanner("Couldn't save your rating. Try again."));
+}
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-vote],[data-ask],[data-q],[data-stop],[data-occ],[data-addcat]"); if (!t) return;
+  if (t.dataset.occ) { occasion = t.dataset.occ; try { localStorage.setItem("occ", occasion); } catch {} render(); return; }
+  if (t.dataset.vote) { vote(t.dataset.key, Number(t.dataset.vote)); return; }
+  if (t.dataset.ask) { const k = t.dataset.ask; const st = askState[k] || (askState[k] = {}); st.open = !st.open; render(); return; }
+  if (t.dataset.q) { askClaude(t.dataset.key, t.dataset.q); return; }
+  if (t.dataset.stop) { askState[t.dataset.stop]?.ctl?.abort(); return; }
+  if (t.dataset.addcat) {
+    const cur = current(); const c = CATALOG.find(x => x[0] === t.dataset.addcat);
+    if (!c || cur.example || cur.bottles.some(b => norm(b.name) === norm(c[0]))) return;
+    cur.bottles.push({ id: rid(), name: c[0], house: c[1], accords: c[2].slice() }); render(); save(cur);
+  }
+});
+document.addEventListener("submit", e => {
+  const f = e.target.closest("[data-askform]"); if (!f) return;
+  e.preventDefault(); const k = f.dataset.askform; const inp = f.querySelector("input");
+  askClaude(k, inp.value); if (askState[k]) askState[k].draft = "";
+});
+document.addEventListener("input", e => {
+  const f = e.target.closest("[data-askform]"); if (f && askState[f.dataset.askform]) askState[f.dataset.askform].draft = e.target.value;
+});
 
 /* ---------- Add-bottle form ---------- */
 $("catalog").innerHTML = CATALOG.map(c => `<option value="${esc(c[0])}">${esc(c[1])} · ${esc(c[3])}</option>`).join("");
@@ -602,6 +757,7 @@ $("tB").addEventListener("change", () => renderTest());
 
 /* ---------- Boot ---------- */
 renderToggles(); render();
+(async () => { try { const s = await window.claude?.use?.("sample"); if (s) { sampleFn = s; render(); } } catch {} })();
 (async () => {
   try { db = await window.claude?.use?.("db"); } catch { db = null; }
   if (!db) { mode = "local"; showBanner("Saving isn't available in this view, so changes last only until you close the page."); render(); return; }
@@ -609,7 +765,14 @@ renderToggles(); render();
     const user = await window.claude.use("user");
     const w = user ? await user.can("data.write") : null;
     if (w === false) canWrite = false;
+    uid = user ? await user.id() : null;
   } catch {}
+  db.collection("ratings").onSnapshot(snap => {
+    ratingDocs = {};
+    snap.docs.forEach(d => { const p = d.data()?.pairs; if (p && typeof p === "object") ratingDocs[d.id] = p; });
+    if (!votesLoaded && uid && ratingDocs[uid]) myVotes = { ...ratingDocs[uid] };
+    votesLoaded = true; recomputeAgg(); render();
+  }, () => {});
   let first = true;
   const timer = setTimeout(() => { if (first) { mode = "live"; showBanner("Can't reach saved shelves yet. They will appear when the connection returns."); render(); } }, 10000);
   db.collection("shelves").onSnapshot(snap => {
