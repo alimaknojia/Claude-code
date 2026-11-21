@@ -1,4 +1,4 @@
-<title>Cologne Layering Lab</title>
+<title>Fragrance Layering Lab</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -107,8 +107,8 @@ footer { margin-top: 22px; font-size: 12.5px; color: var(--muted); max-width: 70
   <header class="top">
     <div>
       <div class="label">Fragrance layering</div>
-      <h1>Cologne Layering Lab</h1>
-      <p>Log the bottles each person owns. The lab scores every pair by how their accords work together and tells you which to spray first.</p>
+      <h1>Fragrance Layering Lab</h1>
+      <p>Log the colognes and perfumes each person owns. The lab scores every pair by how their accords work together and tells you which to spray first.</p>
     </div>
   </header>
   <div id="banner" class="banner" hidden></div>
@@ -130,14 +130,14 @@ footer { margin-top: 22px; font-size: 12.5px; color: var(--muted); max-width: 70
       <form class="add" id="addBottle">
         <h3 id="addBottleH">Add a bottle</h3>
         <div class="row">
-          <input type="text" id="bottleName" list="catalog" placeholder="Start typing: Sauvage, Santal 33…" maxlength="60" aria-label="Fragrance name" autocomplete="off">
+          <input type="text" id="bottleName" list="catalog" placeholder="Start typing: Sauvage, Black Opium, Santal 33…" maxlength="60" aria-label="Fragrance name" autocomplete="off">
           <input type="text" id="bottleHouse" placeholder="House" maxlength="40" aria-label="House" style="flex:0 1 140px">
         </div>
         <datalist id="catalog"></datalist>
         <div>
           <div class="label" style="margin-bottom:6px">Main accords, strongest first</div>
           <div class="toggles" id="toggles"></div>
-          <div class="hint" id="accHint">Known colognes fill these in. Tap to change. Pick 1–5.</div>
+          <div class="hint" id="accHint">About 90 known fragrances fill these in. Tap to change. Pick 1–5.</div>
         </div>
         <div class="row"><button type="submit" class="primary" id="addBtn">Add to shelf</button><span class="hint" id="addMsg"></span></div>
       </form>
@@ -164,7 +164,7 @@ footer { margin-top: 22px; font-size: 12.5px; color: var(--muted); max-width: 70
       </div>
     </section>
   </div>
-  <footer>Scores come from accord pairings perfumers commonly layer (citrus over woods, amber with tobacco, lavender with vanilla) and penalize clashes such as aquatic with gourmand. Accords for listed colognes are approximate; set them yourself if your nose disagrees. Test on skin before a big night.</footer>
+  <footer>Scores come from accord pairings perfumers commonly layer (citrus over woods, amber with tobacco, lavender with vanilla) and penalize clashes such as aquatic with gourmand. Accords for listed fragrances are approximate; set them yourself if your nose disagrees. Test on skin before a big night.</footer>
 </div>
 
 <script>
@@ -337,6 +337,54 @@ const CATALOG = [
   ["Molecule 01","Escentric Molecules",["woody","musk"]],
   ["Ambre Nuit","Dior",["amber","floral","woody"]],
 ];
+const UNISEX = new Set(["Tobacco Vanille","Oud Wood","Tuscan Leather","Ombré Leather","Neroli Portofino","Baccarat Rouge 540","Oud Satin Mood","Santal 33","Another 13","Jazz Club","By the Fireplace","Wood Sage & Sea Salt","Musc Ravageur","Black Afgano","Erba Pura","Molecule 01","Ambre Nuit","Silver Mountain Water"]);
+CATALOG.forEach(c => c.push(UNISEX.has(c[0]) ? "unisex" : "men's"));
+const WOMEN = [
+  ["Black Opium","Yves Saint Laurent",["vanilla","floral","amber"],"w"],
+  ["Libre","Yves Saint Laurent",["aromatic","floral","vanilla","amber"],"w"],
+  ["Miss Dior","Dior",["floral","fruity","musk","woody"],"w"],
+  ["J'adore","Dior",["floral","fruity","musk"],"w"],
+  ["Coco Mademoiselle","Chanel",["citrus","floral","woody","musk"],"w"],
+  ["N°5","Chanel",["floral","powdery","musk","woody"],"w"],
+  ["Chance Eau Tendre","Chanel",["fruity","floral","musk"],"w"],
+  ["La Vie Est Belle","Lancôme",["vanilla","fruity","powdery","floral"],"w"],
+  ["Idôle","Lancôme",["floral","musk","woody"],"w"],
+  ["Good Girl","Carolina Herrera",["vanilla","floral","amber"],"w"],
+  ["Flowerbomb","Viktor&Rolf",["floral","vanilla","fruity"],"w"],
+  ["Daisy","Marc Jacobs",["fruity","floral","musk"],"w"],
+  ["Light Blue","Dolce & Gabbana",["citrus","fruity","woody","musk"],"w"],
+  ["Cloud","Ariana Grande",["vanilla","fruity","musk"],"w"],
+  ["Bright Crystal","Versace",["fruity","floral","musk"],"w"],
+  ["Sì","Giorgio Armani",["fruity","vanilla","floral","woody"],"w"],
+  ["My Way","Giorgio Armani",["floral","citrus","vanilla","musk"],"w"],
+  ["Alien","Mugler",["floral","amber","woody"],"w"],
+  ["Angel","Mugler",["vanilla","fruity","woody","amber"],"w"],
+  ["Delina","Parfums de Marly",["floral","fruity","musk","powdery"],"w"],
+  ["Burberry Her","Burberry",["fruity","floral","musk"],"w"],
+  ["Paradoxe","Prada",["floral","amber","musk"],"w"],
+  ["Bloom","Gucci",["floral","green"],"w"],
+  ["Flora Gorgeous Gardenia","Gucci",["floral","fruity","vanilla"],"w"],
+  ["Nina","Nina Ricci",["fruity","citrus","floral","vanilla"],"w"],
+  ["Shalimar","Guerlain",["amber","vanilla","citrus","powdery"],"w"],
+  ["Mon Guerlain","Guerlain",["aromatic","vanilla","amber"],"w"],
+  ["Portrait of a Lady","Frédéric Malle",["floral","incense","woody","amber"],"w"],
+  ["Vanilla 28","Kayali",["vanilla","amber","floral"],"w"],
+  ["Cheirosa 62","Sol de Janeiro",["vanilla","fruity","musk"],"w"],
+  ["Gypsy Water","Byredo",["woody","aromatic","vanilla","citrus"],"u"],
+  ["Mojave Ghost","Byredo",["floral","woody","musk","fruity"],"u"],
+  ["Lost Cherry","Tom Ford",["fruity","vanilla","amber"],"u"],
+  ["Rose 31","Le Labo",["floral","freshspicy","woody"],"u"],
+  ["Philosykos","Diptyque",["green","fruity","woody"],"u"],
+  ["Do Son","Diptyque",["floral","aquatic","musk"],"u"],
+  ["English Pear & Freesia","Jo Malone",["fruity","floral","musk"],"u"],
+  ["Peony & Blush Suede","Jo Malone",["floral","fruity","leather"],"u"],
+  ["Bianco Latte","Giardini di Toscana",["vanilla","musk"],"u"],
+  ["Kirke","Tiziana Terenzi",["fruity","musk","woody"],"u"],
+  ["Glossier You","Glossier",["musk","woody","freshspicy"],"u"],
+  ["Lazy Sunday Morning","Maison Margiela",["musk","floral","fruity"],"u"],
+  ["Not a Perfume","Juliette Has a Gun",["woody","musk"],"u"],
+];
+for (const [n, h, a, g] of WOMEN) CATALOG.push([n, h, a, g === "w" ? "women's" : "unisex"]);
 
 function weightOf(acc) {
   if (!acc.length) return 2.5;
@@ -501,7 +549,7 @@ function pairCard(a, b, r, sub) {
 }
 
 /* ---------- Add-bottle form ---------- */
-$("catalog").innerHTML = CATALOG.map(c => `<option value="${esc(c[0])}">${esc(c[1])}</option>`).join("");
+$("catalog").innerHTML = CATALOG.map(c => `<option value="${esc(c[0])}">${esc(c[1])} · ${esc(c[3])}</option>`).join("");
 function renderToggles() {
   $("toggles").innerHTML = KEYS.map(k => { const i = picked.indexOf(k); return `<button type="button" class="toggle" data-acc="${k}" aria-pressed="${i >= 0}"><i style="background:${ACCORDS[k].c}"></i>${esc(ACCORDS[k].label)}${i >= 0 ? ` <span class="muted">${i + 1}</span>` : ""}</button>`; }).join("");
 }
