@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public shelf: any signed-in user can read it (friends look it up by code);
+    // only the owner can write it.
+    match /profiles/{uid} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'bottles', 'updatedAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 40
+        && request.resource.data.bottles is list
+        && request.resource.data.bottles.size() <= 80;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+    // Private: your ratings and friends list. Owner only.
+    match /private/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['ratings', 'friends', 'updatedAt'])
+        && request.resource.data.friends is list
+        && request.resource.data.friends.size() <= 50;
+    }
+  }
+}
