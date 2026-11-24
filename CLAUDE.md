@@ -152,3 +152,7 @@ Before sending, delete:
 Then verify: if the reader reads only the first line and the last line, do they know (a) what to do next, and (b) what just happened?
 
 If yes, send.
+
+## Trading
+
+Never place, change, cancel or exercise a trade (stock, option or crypto) without asking first. Before each order, show the ticker, side, quantity, order type and prices, then wait for the reader to reply yes to that exact order. A yes covers one order only. `.claude/settings.json` also sets every Robinhood order tool to "ask", so the harness prompts too.

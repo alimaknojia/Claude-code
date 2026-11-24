@@ -1,5 +1,17 @@
 {
   "permissions": {
+    "ask": [
+      "mcp__Robinhood__place_equity_order",
+      "mcp__Robinhood__place_advanced_order",
+      "mcp__Robinhood__place_option_order",
+      "mcp__Robinhood__place_crypto_order",
+      "mcp__Robinhood__exercise_option",
+      "mcp__Robinhood__cancel_equity_order",
+      "mcp__Robinhood__cancel_advanced_order",
+      "mcp__Robinhood__cancel_option_order",
+      "mcp__Robinhood__cancel_crypto_order",
+      "mcp__Robinhood__cancel_option_exercise"
+    ],
     "deny": [
       "Skill(data:data-visualization)",
       "Skill(data:create-viz)",
